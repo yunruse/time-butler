@@ -55,6 +55,7 @@ GUILDS = [885908649342537810]
                 create_choice(name="Date (words)", value="D"),
                 create_choice(name="Date (words + time)", value="f"),
                 create_choice(name="Date (words + time + weekday)", value="F"),
+                create_choice(name="Display ALL formats", value="all"),
             ]
         ),
     ]
@@ -71,27 +72,6 @@ async def when(
         await ctx.send(msg)
     else:
         await ctx.author.send(msg)
-
-
-@slash.slash(
-    guild_ids=GUILDS,
-    options=[
-        create_option(
-            name="datetime",
-            description='''The date and/or time. Can be relative ("Tomorrow at 2pm") and accepts most languages.''',
-            option_type=3,
-            required=True
-        )
-    ]
-)
-async def formats(ctx: SlashContext, datetime: str):
-    '''Display all timestamp formats that can be used for a given date and/or time.'''
-    worked, msg = interpret(datetime, "all")
-    if worked:
-        await ctx.send(msg)
-    else:
-        await ctx.author.send(msg)
-
 
 SMALL_CAPS = str.maketrans(
     "abcdefghijklmnopqrstuvwxyz",
