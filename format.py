@@ -10,6 +10,14 @@ from context import slash, STRING, GUILDS
 TRANSFORMATIONS = {}
 TRANSFORMATION_OPTIONS = []
 
+
+def transform(text: str, format: str = ""):
+    text = text.translate(TRANSFORMATIONS.get(format, {}))
+    if format == "Upside down":
+        text = text[::-1]
+    return text
+
+
 with open('format.json') as f:
     DATA: dict[str, object] = json.load(f)
 
@@ -21,8 +29,7 @@ for k, v in DATA.items():
         src, dst = v
 
     TRANSFORMATIONS[k] = str.maketrans(src, dst)
-    TRANSFORMATION_OPTIONS.append(create_choice(
-        name=k.translate(TRANSFORMATIONS[k]), value=k))
+    TRANSFORMATION_OPTIONS.append(create_choice(name=transform(k, k), value=k))
 
 
 @slash.slash(
@@ -45,4 +52,4 @@ for k, v in DATA.items():
 )
 async def format(ctx: SlashContext, text: str, format: str):
     '''Format text in a variety of ways!'''
-    await ctx.send(text.translate(TRANSFORMATIONS.get(format, {})))
+    await ctx.send(transform(text, format))
