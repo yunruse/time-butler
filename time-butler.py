@@ -126,7 +126,7 @@ TINY_TEXT = str.maketrans(
 )
 async def smallcaps(ctx: SlashContext, text: str):
     '''Makes text have small caps (Lɪᴋᴇ ᴛʜɪs)'''
-    await ctx.channel.send(text.translate(SMALL_CAPS))
+    await ctx.send(text.translate(SMALL_CAPS))
 
 
 @slash.slash(
@@ -142,7 +142,7 @@ async def smallcaps(ctx: SlashContext, text: str):
 )
 async def superscript(ctx: SlashContext, text: str):
     '''Makes text tiny and superscript ⁽ᴸᶦᵏᵉ ᵗʰᶦˢ⁾'''
-    await ctx.channel.send(text.translate(TINY_TEXT))
+    await ctx.send(text.translate(TINY_TEXT))
 
 
 def contains(string, fragments):
