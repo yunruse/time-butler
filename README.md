@@ -9,4 +9,4 @@
 
 A Discord bot to help coordinate times across servers. Simply summon with `/when Tomorrow at 2pm`, or any other natural-language query (in almost any language, too!)
 
-Grab Python 3.7, `pip install discord.py discord-py-slash-command dateparser`, and run.
+Grab Python 3.7, `pip install discord.py discord-py-slash-command dateparser`, add `oauth-token.txt`, and run `time-butler.py`.
