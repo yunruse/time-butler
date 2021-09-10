@@ -14,7 +14,7 @@ class Format(Enum):
 FORMATS = "RtTdDfF"
 
 
-def interpret(string, fmt: Format, name: str = "Event"):
+def interpret(string, fmt: Format, name: str = None):
     dt = None
     try:
         dt = parse(string, settings={
@@ -35,23 +35,29 @@ def interpret(string, fmt: Format, name: str = "Event"):
     in_future = utc >= now
     days = abs(now - utc).days
 
-    if fmt == Format.all:
+    if fmt == "all":
         msg = "You can present this in a variety of ways:\n"
         for code in FORMATS:
             msg += f"Type `<t:{unix}:{code}>` to get <t:{unix}:{code}>\n"
         msg += "These messages all adapt to the time zone of the reader! \n"
         msg += f"Don't forget to add the UTC timestamp ({utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
         msg += ", just in case someone is using an older version of Discord!"
+        return (True, msg)
 
-    else:
-        code = "D"
-        utc_fmt = '%Y-%m-%d'
-        if fmt == Format.datetime:
-            code = "F"
-            utc_fmt = '%Y-%m-%d %H:%M:%S'
+    msg = ""
+    if name is not None:
+        msg = f"{name} " + ('will be' if in_future else 'was') + " "
 
-        msg = f"{name} " + ('will be' if in_future else 'was')
-        msg += f" <t:{unix}:R> "
+    if fmt == "auto":
+        fmt = "F"
+        utc_fmt = '%Y-%m-%d %H:%M:%S'
+        # TODO: use other codes based on context (e.g. time not provided)
+
+        msg += f"<t:{unix}:R> "
         msg += "on" if in_future else "at"
-        msg += f" <t:{unix}:{code}> ({utc.strftime(utc_fmt)} UTC)"
-    return (True, msg)
+        msg += f" <t:{unix}:{fmt}> ({utc.strftime(utc_fmt)} UTC)"
+    else:
+        if name is not None:
+            msg += "on" if in_future else "at"
+        msg += f" <t:{unix}:{fmt}>"
+    return (True, msg.strip())

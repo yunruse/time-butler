@@ -27,7 +27,6 @@ GUILDS = [885908649342537810]
 
 
 @slash.slash(
-    name="datetime",
     guild_ids=GUILDS,
     options=[
         create_option(
@@ -38,46 +37,36 @@ GUILDS = [885908649342537810]
         ),
         create_option(
             name="name",
-            description='''The name of the event. Defaults to just "Event".''',
+            description='''Provide a name to the event.''',
             option_type=STRING,
             required=False
         ),
+        create_option(
+            name="display",
+            description="Method of display",
+            option_type=STRING,
+            required=False,
+            choices=[
+                create_choice(name="Automatic", value="auto"),
+                create_choice(name="Relative (In x hours, etc)", value="R"),
+                create_choice(name="Time (HH:MM)", value="t"),
+                create_choice(name="Time (HH:MM:SS)", value="T"),
+                create_choice(name="Date (numbers)", value="d"),
+                create_choice(name="Date (words)", value="D"),
+                create_choice(name="Date (words + time)", value="f"),
+                create_choice(name="Date (words + time + weekday)", value="F"),
+            ]
+        ),
     ]
 )
-async def _datetime(
+async def when(
     ctx: SlashContext,
     datetime: str,
-    name: str = "Event",
-    display: SendFormat = SendFormat.auto,
+    name: str = None,
+    display: str = "auto",
 ):
     '''Display a date and time in an easy-to-read way.'''
-    worked, msg = interpret(datetime, Format.datetime, name=name)
-    if worked:
-        await ctx.send(msg)
-    else:
-        await ctx.author.send(msg)
-
-
-@slash.slash(
-    guild_ids=GUILDS,
-    options=[
-        create_option(
-            name="date",
-            description='''The date. Can be relative ("Next Tuesday") and accepts most languages.''',
-            option_type=STRING,
-            required=True
-        ),
-        create_option(
-            name="name",
-            description='''The name of the event. Defaults to just "Event".''',
-            option_type=STRING,
-            required=False
-        )
-    ]
-)
-async def date(ctx: SlashContext, date: str, name: str = "Event"):
-    '''Display a date in an easy-to-read way.'''
-    worked, msg = interpret(date, Format.date, name=name)
+    worked, msg = interpret(datetime, display, name=name)
     if worked:
         await ctx.send(msg)
     else:
@@ -97,7 +86,7 @@ async def date(ctx: SlashContext, date: str, name: str = "Event"):
 )
 async def formats(ctx: SlashContext, datetime: str):
     '''Display all timestamp formats that can be used for a given date and/or time.'''
-    worked, msg = interpret(datetime, Format.all)
+    worked, msg = interpret(datetime, "all")
     if worked:
         await ctx.send(msg)
     else:
@@ -155,7 +144,7 @@ async def on_message(message: Message):
         return
     if not isinstance(message.channel, DMChannel):
         return
-    worked, response = interpret(message.content, Format.all)
+    worked, response = interpret(message.content, "all")
     if worked:
         await message.channel.send(response)
     else:
