@@ -57,7 +57,7 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
 
     msg = ""
     if name is not None:
-        msg = f"{name} " + ('will be' if in_future else 'was') + " "
+        msg = f"**{name}** will be "
 
     if fmt == "auto":
         fmt = "F"
@@ -72,6 +72,49 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
             msg += "on" if in_future else "at"
         msg += f" <t:{unix}:{fmt}>"
     return InterpretResult(True, msg.strip(), utc)
+
+
+DATE_OPTIONS = [
+    create_option(
+        name="datetime",
+        description='''The time (and date, if not today). Can be relative ("Tomorrow at 2pm") and accepts most languages.''',
+        option_type=STRING,
+        required=True
+    ),
+    create_option(
+        name="display",
+        description="Method of display",
+        option_type=STRING,
+        required=False,
+        choices=[
+            create_choice(name="Automatic", value="auto"),
+            create_choice(name="Relative (In x hours, etc)", value="R"),
+            create_choice(name="Time (HH:MM)", value="t"),
+            create_choice(name="Time (HH:MM:SS)", value="T"),
+            create_choice(name="Date (numbers)", value="d"),
+            create_choice(name="Date (words)", value="D"),
+            create_choice(name="Date (words + time)", value="f"),
+            create_choice(name="Date (words + time + weekday)", value="F"),
+            create_choice(name="Display ALL formats", value="all"),
+        ]
+    ),
+]
+
+
+@slash.slash(
+    guild_ids=GUILDS,
+    options=DATE_OPTIONS
+)
+async def when(
+    ctx: SlashContext,
+    datetime: str,
+    display: str = "auto",
+):
+    '''Display a date and time in an easy-to-read way.'''
+    response = interpret(datetime, display)
+    if not response.worked:
+        return await ctx.author.send(response.msg)
+    await ctx.send(response.msg)
 
 
 REMINDERS = {
@@ -89,71 +132,42 @@ REMINDERS = {
     guild_ids=GUILDS,
     options=[
         create_option(
-            name="datetime",
-            description='''The time (and date, if not today). Can be relative ("Tomorrow at 2pm") and accepts most languages.''',
-            option_type=STRING,
-            required=True
-        ),
-        create_option(
             name="name",
-            description='''Provide a name to the event.''',
+            description='''The event's name.''',
             option_type=STRING,
-            required=False
-        ),
-        create_option(
-            name="display",
-            description="Method of display",
-            option_type=STRING,
-            required=False,
-            choices=[
-                create_choice(name="Automatic", value="auto"),
-                create_choice(name="Relative (In x hours, etc)", value="R"),
-                create_choice(name="Time (HH:MM)", value="t"),
-                create_choice(name="Time (HH:MM:SS)", value="T"),
-                create_choice(name="Date (numbers)", value="d"),
-                create_choice(name="Date (words)", value="D"),
-                create_choice(name="Date (words + time)", value="f"),
-                create_choice(name="Date (words + time + weekday)", value="F"),
-                create_choice(name="Display ALL formats", value="all"),
-            ]
-        ),
-    ]
+            required=True,
+        )
+    ] + DATE_OPTIONS
 )
-async def when(
+async def event(
     ctx: SlashContext,
+    name: str,
     datetime: str,
-    name: str = None,
     display: str = "auto",
 ):
-    '''Display a date and time in an easy-to-read way.'''
+    '''Display a named event in the future, which people can set reminders for.'''
     response = interpret(datetime, display, name=name)
     if not response.worked:
-        return await ctx.author.send(response.msg)
+        return await ctx.send(response.msg, hidden=True)
+
+    if response.datetime < now():
+        return await ctx.send("This event has to be in the future!", hidden=True)
 
     delta: timedelta = abs(now() - response.datetime)
-    in_future: bool = now() <= response.datetime
-
-    components = []
-
-    if in_future:
-        options = []
-        for seconds, text in REMINDERS.items():
-            if seconds > delta.seconds:
-                continue
-            options.append(create_select_option(
-                text, value=f"{seconds} {int(response.datetime.timestamp()) - seconds}"))
-
-        components = [create_actionrow(create_select(
-            options=options,
-            placeholder="Select an option to be reminded for this time!"
-        ))]
+    components = [create_actionrow(create_select(
+        placeholder="Select an option to be reminded for this time!",
+        options=[
+            create_select_option(
+                text, value=f"{seconds} {int(response.datetime.timestamp()) - seconds}")
+            for seconds, text in REMINDERS.items()
+            if seconds <= delta.seconds
+        ],
+    ))]
     await ctx.send(response.msg, components=components)
 
 
 @bot.event
 async def on_component(ctx: ComponentContext):
-    await ctx.defer(hidden=True)
-
     if len(ctx.selected_options) != 1:
         return
     offset, timestamp = ctx.selected_options[0].split(" ")
@@ -165,10 +179,13 @@ async def on_component(ctx: ComponentContext):
     key = (ctx.guild_id, ctx.channel.id, ctx.origin_message_id)
     STORAGE["event_reminders"][ctx.author.id][key] = timestamp
 
-    if offset == -1:
-        await ctx.send(content=f"Reminder cancelled!")
+    if timestamp <= int(now().timestamp()):
+        del STORAGE["event_reminders"][ctx.author.id][key]
+        await ctx.send(f"I can't set a reminder – the event happened <t:{timestamp}:R>!", hidden=True)
+    elif offset == -1:
+        await ctx.send("Reminder cancelled!", hidden=True)
     else:
-        await ctx.send(content=f"Reminder set for {reminder_type}!")
+        await ctx.send(f"Reminder set for {reminder_type}!", hidden=True)
 
     print(STORAGE)
 
@@ -178,19 +195,22 @@ async def on_component(ctx: ComponentContext):
 )
 async def upcoming(ctx: SlashContext):
     '''Show all upcoming events you set a reminder for.'''
-    await ctx.defer(hidden=True)
-
     reminders = STORAGE["event_reminders"].get(ctx.author.id, {})
 
+    NOW = int(now().timestamp())
+
     if not reminders:
-        return await ctx.send("You have no reminders set! Use `/when` in a server to set an event that others can be reminded of.")
+        return await ctx.send("You have no reminders set! Use `/when` in a server to set an event that others can be reminded of.", hidden=True)
 
     msg = "Your reminders are:\n"
     for timestamp, (guild, channel, message) in sorted((t, u) for u, t in reminders.items()):
+        if timestamp < NOW:
+            # somehow in the past?
+            del reminders[guild, channel, message]
         if ch := bot.get_channel(channel):
             msg += (await ch.fetch_message(message)).content
         else:
             msg += f"<t:{timestamp}:R> at <t:{timestamp}:f>"
         msg += f" https://discord.com/channels/{guild}/{channel}/{message}/ \n"
 
-    return await ctx.send(msg.strip())
+    return await ctx.send(msg.strip(), hidden=True)
