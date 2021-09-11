@@ -1,15 +1,32 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from dataclasses import dataclass
+from typing import Optional
 
 from dateparser import parse
+from discord import channel
+from discord.message import Message
 
-from discord_slash import SlashContext
+from context import bot, slash, STRING, GUILDS, STORAGE
+from discord_slash import SlashContext, ComponentContext
 from discord_slash.utils.manage_commands import create_option, create_choice
-from context import slash, STRING, GUILDS
+from discord_slash.utils.manage_components import create_button, create_actionrow, create_select, create_select_option
+from discord_slash.model import ButtonStyle
 
 FORMATS = "RtTdDfF"
+now = datetime.now
+
+# {user: {(guild, channel, message): timestamp}}
+STORAGE.setdefault("event_reminders", {})
 
 
-def interpret(string, fmt: str, name: str = None):
+@dataclass
+class InterpretResult:
+    worked: bool
+    msg: str
+    datetime: Optional[datetime] = None
+
+
+def interpret(string, fmt: str, name: str = None) -> InterpretResult:
     dt = None
     try:
         dt = parse(string, settings={
@@ -21,14 +38,13 @@ def interpret(string, fmt: str, name: str = None):
         pass
 
     if dt is None:
-        return (False, f"Sorry, I didn't understand what you mean by `{string}`! :(")
+        return InterpretResult(False, f"Sorry, I didn't understand what you mean by `{string}`! :(")
 
     now = datetime.now()
     unix = int(dt.timestamp())
     utc = datetime.fromtimestamp(unix)
 
     in_future = utc >= now
-    days = abs(now - utc).days
 
     if fmt == "all":
         msg = "You can present this in a variety of ways:\n"
@@ -37,7 +53,7 @@ def interpret(string, fmt: str, name: str = None):
         msg += "These messages all adapt to the time zone of the reader! \n"
         msg += f"Don't forget to add the UTC timestamp ({utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
         msg += ", just in case someone is using an older version of Discord!"
-        return (True, msg)
+        return InterpretResult(True, msg, utc)
 
     msg = ""
     if name is not None:
@@ -55,7 +71,18 @@ def interpret(string, fmt: str, name: str = None):
         if name is not None:
             msg += "on" if in_future else "at"
         msg += f" <t:{unix}:{fmt}>"
-    return (True, msg.strip())
+    return InterpretResult(True, msg.strip(), utc)
+
+
+REMINDERS = {
+    -1: "Cancel that reminder!",
+    0: "At the event",
+    60: "A minute before",
+    60 * 5: "5 minutes before",
+    60 * 60: "An hour before",
+    60 * 60 * 24: "A day before",
+    60 * 60 * 24 * 7: "A week before"
+}
 
 
 @slash.slash(
@@ -99,8 +126,71 @@ async def when(
     display: str = "auto",
 ):
     '''Display a date and time in an easy-to-read way.'''
-    worked, msg = interpret(datetime, display, name=name)
-    if worked:
-        await ctx.send(msg)
+    response = interpret(datetime, display, name=name)
+    if not response.worked:
+        return await ctx.author.send(response.msg)
+
+    delta: timedelta = abs(now() - response.datetime)
+    in_future: bool = now() <= response.datetime
+
+    components = []
+
+    if in_future:
+        options = []
+        for seconds, text in REMINDERS.items():
+            if seconds > delta.seconds:
+                continue
+            options.append(create_select_option(
+                text, value=f"{seconds} {int(response.datetime.timestamp()) - seconds}"))
+
+        components = [create_actionrow(create_select(
+            options=options,
+            placeholder="Select an option to be reminded for this time!"
+        ))]
+    await ctx.send(response.msg, components=components)
+
+
+@bot.event
+async def on_component(ctx: ComponentContext):
+    await ctx.defer(hidden=True)
+
+    if len(ctx.selected_options) != 1:
+        return
+    offset, timestamp = ctx.selected_options[0].split(" ")
+    timestamp = int(timestamp)
+    offset = int(offset)
+    reminder_type = REMINDERS[offset].lower()
+
+    STORAGE["event_reminders"].setdefault(ctx.author.id, {})
+    key = (ctx.guild_id, ctx.channel.id, ctx.origin_message_id)
+    STORAGE["event_reminders"][ctx.author.id][key] = timestamp
+
+    if offset == -1:
+        await ctx.send(content=f"Reminder cancelled!")
     else:
-        await ctx.author.send(msg)
+        await ctx.send(content=f"Reminder set for {reminder_type}!")
+
+    print(STORAGE)
+
+
+@slash.slash(
+    guild_ids=GUILDS,
+)
+async def upcoming(ctx: SlashContext):
+    '''Show all upcoming events you set a reminder for.'''
+    await ctx.defer(hidden=True)
+
+    reminders = STORAGE["event_reminders"].get(ctx.author.id, {})
+
+    if not reminders:
+        return await ctx.send("You have no reminders set! Use `/when` in a server to set an event that others can be reminded of.")
+
+    msg = "Your reminders are:\n"
+    for timestamp, (guild, channel, message) in sorted((t, u) for u, t in reminders.items()):
+        if ch := bot.get_channel(channel):
+            msg += (await ch.fetch_message(message)).content
+        else:
+            msg += f"<t:{timestamp}:R> at <t:{timestamp}:f>"
+        msg += f" https://discord.com/channels/{guild}/{channel}/{message}/ \n"
+
+    return await ctx.send(msg.strip())

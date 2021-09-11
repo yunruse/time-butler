@@ -5,3 +5,5 @@ bot = Bot("/")
 slash = SlashCommand(bot, sync_commands=True)
 STRING = 3
 GUILDS = [885908649342537810]
+
+STORAGE = {}
