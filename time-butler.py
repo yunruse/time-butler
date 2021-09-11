@@ -5,7 +5,7 @@ from discord.channel import DMChannel
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
-from context import bot
+from context import STORAGE, bot
 
 # Actual modules
 import format
@@ -49,4 +49,8 @@ async def on_ready():
 
 with open('oauth-token.txt') as f:
     TOKEN = f.read().strip()
-bot.run(TOKEN)
+
+try:
+    bot.run(TOKEN)
+except KeyboardInterrupt:
+    STORAGE.save()

@@ -14,7 +14,9 @@ ROLE = 8
 
 # key :: (guild, channel, message)
 
-# {user: {key: timestamp}}
+# {message: key}
+STORAGE.setdefault("event_messages", {})
+# {user: {message: timestamp}}
 STORAGE.setdefault("event_reminders", {})
 # {guild: role_id}
 STORAGE.setdefault("event_role", {})
@@ -49,6 +51,7 @@ async def event_creator_role(
     if not ctx.author.guild_permissions.administrator:
         await ctx.send("Only administrators can set the role for event creation.", hidden=True)
     STORAGE["event_role"][ctx.guild_id] = role.id
+    STORAGE.save()
     is_everyone = role == ctx.guild.default_role
     await ctx.send(f"Okay, {'everyone' if is_everyone else f'only <@&{role.id}>'} may create events.", hidden=True)
 
@@ -106,12 +109,17 @@ async def on_component(ctx: ComponentContext):
     offset = int(offset)
     reminder_type = REMINDERS[offset].lower()
 
+    msg_id = ctx.origin_message_id
     STORAGE["event_reminders"].setdefault(ctx.author.id, {})
-    key = (ctx.guild_id, ctx.channel.id, ctx.origin_message_id)
-    STORAGE["event_reminders"][ctx.author.id][key] = timestamp
+
+    # TODO: figure out a way to delete these when not in use anymore D:
+    STORAGE["event_messages"][msg_id] = (ctx.guild_id, ctx.channel.id)
+
+    STORAGE["event_reminders"][ctx.author.id][msg_id] = timestamp
+    STORAGE.save()
 
     if timestamp <= int(now().timestamp()):
-        del STORAGE["event_reminders"][ctx.author.id][key]
+        del STORAGE["event_reminders"][ctx.author.id][msg_id]
         await ctx.send(f"I can't set a reminder – the event happened <t:{timestamp}:R>!", hidden=True)
     elif offset == -1:
         await ctx.send("Reminder cancelled!", hidden=True)
@@ -134,16 +142,17 @@ async def upcoming(ctx: SlashContext):
         return await ctx.send("You have no reminders set! Try setting an `/event`.", hidden=True)
 
     msg = "Your reminders are:\n"
-    for timestamp, key in sorted((t, u) for u, t in reminders.items()):
+    for timestamp, msg_id in sorted((t, u) for u, t in reminders.items()):
         if timestamp < NOW:
             # somehow in the past?
-            del reminders[key]
-        guild, channel, message = key
+            del reminders[msg_id]
 
-        if ch := bot.get_channel(channel):
-            msg += (await ch.fetch_message(message)).content
-        else:
-            msg += f"<t:{timestamp}:R> at <t:{timestamp}:f>"
-        msg += f" https://discord.com/channels/{guild}/{channel}/{message}/ \n"
+        reminder = f"<t:{timestamp}:R> at <t:{timestamp}:f>"
+        if msg_id in STORAGE["event_messages"]:
+            guild_id, channel_id = STORAGE["event_messages"][msg_id]
+            if ch := bot.get_channel(channel_id):
+                reminder = (await ch.fetch_message(msg_id)).content
+            reminder += f" https://discord.com/channels/{guild_id}/{channel_id}/{msg_id}/ \n"
+            msg += reminder
 
     return await ctx.send(msg.strip(), hidden=True)

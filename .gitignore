@@ -118,3 +118,4 @@ dmypy.json
 
 # Project-specific
 oauth-token.txt
+storage.json
