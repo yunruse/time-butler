@@ -200,7 +200,7 @@ async def upcoming(ctx: SlashContext):
     NOW = int(now().timestamp())
 
     if not reminders:
-        return await ctx.send("You have no reminders set! Use `/when` in a server to set an event that others can be reminded of.", hidden=True)
+        return await ctx.send("You have no reminders set! Try setting an `/event`.", hidden=True)
 
     msg = "Your reminders are:\n"
     for timestamp, (guild, channel, message) in sorted((t, u) for u, t in reminders.items()):
