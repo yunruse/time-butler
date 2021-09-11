@@ -8,8 +8,9 @@ from discord_slash.utils.manage_commands import create_option, create_choice
 from context import bot
 
 # Actual modules
-import when
 import format
+import when
+import event
 
 
 def contains(string, fragments):
@@ -22,9 +23,9 @@ async def on_message(message: Message):
         return
     if not isinstance(message.channel, DMChannel):
         return
-    worked, response = when.interpret(message.content, "all")
-    if worked:
-        await message.channel.send(response)
+    response = when.interpret(message.content, "all")
+    if response.worked:
+        await message.channel.send(response.msg)
     else:
         msg = message.content.lower().strip()
         if contains(msg, "🍕 pizza spider-man spiderman spider"):
