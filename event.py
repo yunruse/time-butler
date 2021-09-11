@@ -16,8 +16,6 @@ ROLE = 8
 
 # {user: {key: timestamp}}
 STORAGE.setdefault("event_reminders", {})
-# {guild: {key: timestamp}}
-STORAGE.setdefault("events", {})
 # {guild: role_id}
 STORAGE.setdefault("event_role", {})
 
@@ -136,10 +134,12 @@ async def upcoming(ctx: SlashContext):
         return await ctx.send("You have no reminders set! Try setting an `/event`.", hidden=True)
 
     msg = "Your reminders are:\n"
-    for timestamp, (guild, channel, message) in sorted((t, u) for u, t in reminders.items()):
+    for timestamp, key in sorted((t, u) for u, t in reminders.items()):
         if timestamp < NOW:
             # somehow in the past?
-            del reminders[guild, channel, message]
+            del reminders[key]
+        guild, channel, message = key
+
         if ch := bot.get_channel(channel):
             msg += (await ch.fetch_message(message)).content
         else:
