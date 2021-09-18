@@ -106,6 +106,4 @@ async def when(
 ):
     '''Display a date and time in an easy-to-read way.'''
     response = interpret(datetime, display)
-    if not response.worked:
-        return await ctx.author.send(response.msg)
-    await ctx.send(response.msg)
+    await ctx.send(response.msg, hidden=not response.worked)
