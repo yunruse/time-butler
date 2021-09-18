@@ -18,7 +18,16 @@ PARSER = DateDataParser(settings={
 
 
 def parse(string):
-    return PARSER.get_date_data(string)
+    now = datetime.now()
+    parsed = PARSER.get_date_data(string)
+    dt = parsed.date_obj
+    # For some reason, relative dates will always return "day", even if they're clearly providing a time.
+    # We work around this by simply changing it iff the H:M:S is different.
+    # If it's the same, we can safely assume "In two days" etc was used, so it can remain a date.
+    if dt is not None:
+        if parsed.period == "day" and (dt.hour, dt.minute, dt.second) != (now.hour, now.minute, now.second):
+            parsed.period = "time"
+    return parsed
 
 
 @dataclass
