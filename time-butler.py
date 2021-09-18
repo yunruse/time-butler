@@ -5,12 +5,11 @@ from discord.channel import DMChannel
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
-from context import STORAGE, bot
+from context import bot
 
 # Actual modules
 import format
 import when
-import event
 
 
 def contains(string, fragments):
@@ -50,7 +49,4 @@ async def on_ready():
 with open('oauth-token.txt') as f:
     TOKEN = f.read().strip()
 
-try:
-    bot.run(TOKEN)
-except KeyboardInterrupt:
-    STORAGE.save()
+bot.run(TOKEN)
