@@ -1,8 +1,8 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Optional
 
-from dateparser import parse
+from dateparser import DateDataParser
 
 from context import slash, STRING, GUILDS
 from discord_slash import SlashContext
@@ -11,6 +11,10 @@ from discord_slash.utils.manage_commands import create_option, create_choice
 FORMATS = "RtTdDfF"
 now = datetime.now
 
+PARSER = DateDataParser(settings={
+    'RETURN_TIME_AS_PERIOD': True,
+    'PREFER_DATES_FROM': 'future',
+})
 
 
 @dataclass
@@ -21,24 +25,26 @@ class InterpretResult:
 
 
 def interpret(string, fmt: str, name: str = None) -> InterpretResult:
-    dt = None
-    try:
-        dt = parse(string, settings={
-            # 'TIMEZONE': tz,
-            # TODO: user settings for this?
-            'PREFER_DATES_FROM': 'future'
-        })
-    except ValueError:
-        pass
-
-    if dt is None:
+    parsed = PARSER.get_date_data(string)
+    if parsed.date_obj is None:
         return InterpretResult(False, f"Sorry, I didn't understand what you mean by `{string}`! :(")
 
+    if parsed.period not in ("time", "day"):
+        return InterpretResult(
+            False,
+            f"Sorry - Discord doesn't have any magic display formats built in for a {parsed.period} :(")
+
     now = datetime.now()
-    unix = int(dt.timestamp())
+    unix = int(parsed.date_obj.timestamp())
     utc = datetime.fromtimestamp(unix)
 
     in_future = utc >= now
+    delta = abs(utc - now)
+    time_show_seconds = parsed.date_obj.second != 0
+
+    # TODO: Other languages based on parsed.locale
+    WILL_BE = "will be" if in_future else "was"
+    ON = "on" if fmt in "dDfF" else "at"
 
     if fmt == "all":
         msg = "You can present this in a variety of ways:\n"
@@ -49,23 +55,30 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
         msg += ", just in case someone is using an older version of Discord!"
         return InterpretResult(True, msg, utc)
 
-    msg = ""
-    if name is not None:
-        msg = f"**{name}** will be "
+    msg = [] if name is None else [f"**{name}** {WILL_BE}"]
 
     if fmt == "auto":
         fmt = "F"
-        utc_fmt = '%Y-%m-%d %H:%M:%S'
-        # TODO: use other codes based on context (e.g. time not provided)
+        utc_fmt = '%Y-%m-%d %H:%M'
+        if parsed.period == "day":
+            fmt = "D"
+            utc_fmt = '%Y-%m-%d'
+        elif delta < timedelta(days=1):
+            fmt = "T" if time_show_seconds else "t"
+            utc_fmt = '%H:%M'
 
-        msg += f"<t:{unix}:R> "
-        msg += "on" if in_future else "at"
-        msg += f" <t:{unix}:{fmt}> ({utc.strftime(utc_fmt)} UTC)"
+        if time_show_seconds:
+            utc_fmt = utc_fmt.replace('%M', '%M:%S')
+
+        if name is None:
+            msg.append(f"`{string}` {WILL_BE}")
+        msg.append(f"<t:{unix}:R> {ON} <t:{unix}:{fmt}>")
+        msg.append(f"({utc.strftime(utc_fmt)} UTC)")
     else:
         if name is not None:
-            msg += "on" if in_future else "at"
-        msg += f" <t:{unix}:{fmt}>"
-    return InterpretResult(True, msg.strip(), utc)
+            msg.append(ON)
+        msg.append(f" <t:{unix}:{fmt}>")
+    return InterpretResult(True, " ".join(msg), utc)
 
 
 DATE_OPTIONS = [
@@ -97,13 +110,21 @@ DATE_OPTIONS = [
 
 @slash.slash(
     guild_ids=GUILDS,
-    options=DATE_OPTIONS
+    options=DATE_OPTIONS + [
+        create_option(
+            name="name",
+            description="Give the event a name",
+            option_type=STRING,
+            required=False,
+        )
+    ]
 )
 async def when(
     ctx: SlashContext,
     datetime: str,
     display: str = "auto",
+    name: str = None,
 ):
     '''Display a date and time in an easy-to-read way.'''
-    response = interpret(datetime, display)
+    response = interpret(datetime, display, name)
     await ctx.send(response.msg, hidden=not response.worked)
