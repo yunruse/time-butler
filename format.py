@@ -55,6 +55,4 @@ TRANSFORMATION_OPTIONS.append(create_choice(
 )
 async def format(ctx: SlashContext, text: str, format: str):
     '''Format text in a variety of ways!'''
-    if format == "hidden":
-        return await ctx.send(text, hidden=True)
-    await ctx.send(transform(text, format))
+    await ctx.send(transform(text, format), hidden=True)
