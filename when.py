@@ -17,6 +17,10 @@ PARSER = DateDataParser(settings={
 })
 
 
+def parse(string):
+    return PARSER.get_date_data(string)
+
+
 @dataclass
 class InterpretResult:
     worked: bool
@@ -25,7 +29,7 @@ class InterpretResult:
 
 
 def interpret(string, fmt: str, name: str = None) -> InterpretResult:
-    parsed = PARSER.get_date_data(string)
+    parsed = parse(string)
     if parsed.date_obj is None:
         return InterpretResult(False, f"Sorry, I didn't understand what you mean by `{string}`! :(")
 
