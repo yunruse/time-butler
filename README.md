@@ -9,6 +9,8 @@
 </p>
 -->
 
+![Screenshot of the bot in use.](screenshot.png)
+
 A Discord bot to help coordinate times across servers. Simply summon with `/when Tomorrow at 2pm`, or any other natural-language query (in almost any language, too!) and Time Butler will return with a response which displays correctly in all time zones.
 
 If you want to use Discord's fancy time formats yourself, simply DM the bot with `Tuesday at 8:30pm EST` et cetera.
