@@ -31,6 +31,9 @@ for k, v in DATA.items():
     TRANSFORMATIONS[k] = str.maketrans(src, dst)
     TRANSFORMATION_OPTIONS.append(create_choice(name=transform(k, k), value=k))
 
+TRANSFORMATION_OPTIONS.append(create_choice(
+    name="Hidden memo (only you can see it)", value="hidden"))
+
 
 @slash.slash(
     guild_ids=GUILDS,
@@ -52,4 +55,6 @@ for k, v in DATA.items():
 )
 async def format(ctx: SlashContext, text: str, format: str):
     '''Format text in a variety of ways!'''
+    if format == "hidden":
+        return await ctx.send(text, hidden=True)
     await ctx.send(transform(text, format))
