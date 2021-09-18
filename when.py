@@ -8,6 +8,8 @@ from context import slash, STRING, GUILDS
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
+from joke import joke_gif
+
 FORMATS = "RtTdDfF"
 now = datetime.now
 
@@ -139,5 +141,11 @@ async def when(
     name: str = None,
 ):
     '''Display a date and time in an easy-to-read way.'''
+
+    if name is None and display == "auto":
+        # don't joke around if actual options are provided!
+        GIF = joke_gif(datetime)
+        if GIF:
+            return await ctx.send(GIF, hidden=True)
     response = interpret(datetime, display, name)
     await ctx.send(response.msg, hidden=not response.worked)
