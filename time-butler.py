@@ -8,12 +8,9 @@ from discord_slash.utils.manage_commands import create_option, create_choice
 from context import bot
 
 # Actual modules
+import joke
 import format
 import when
-
-
-def contains(string, fragments):
-    return any(f in string for f in fragments.split())
 
 
 @bot.event
@@ -26,20 +23,11 @@ async def on_message(message: Message):
     if response.worked:
         await message.channel.send(response.msg)
     else:
-        msg = message.content.lower().strip()
-        if contains(msg, "🍕 pizza spider-man spiderman spider"):
-            await message.channel.send("https://tenor.com/view/spider-man-pizza-time-pizza-day-pizza-dinner-gif-16271126")
+        GIF = joke.joke_gif(message.content)
+        if GIF:
+            await message.channel.send(GIF)
             return
-        emoji = "❓"
-        if contains(msg, "hey hi howdy hello hola"):
-            emoji = "👋"
-        elif "cake" in msg:
-            emoji = "🍰"
-        elif "how are you" in msg or "how's it going" in msg or "how are things" in msg:
-            emoji = "☺️"
-        elif contains(msg, "uprising overlord singularity beep boop bot"):
-            emoji = "🤖"
-        await message.add_reaction(emoji)
+        await message.add_reaction(joke.joke_emoji(message.content) or "❓")
 
 
 @bot.event
