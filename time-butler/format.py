@@ -7,6 +7,10 @@ from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 from context import slash, STRING, GUILDS
 
+# TODO:
+# - Spaced out text  l i k e  t h i s  (with nbsp)
+# - Spaced out text with fullwidth characters
+
 TRANSFORMATIONS = {}
 TRANSFORMATION_OPTIONS = []
 
