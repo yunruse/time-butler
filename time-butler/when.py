@@ -96,36 +96,36 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
     return InterpretResult(True, " ".join(msg), utc)
 
 
-DATE_OPTIONS = [
-    create_option(
-        name="datetime",
-        description='''The time (and date, if not today). Can be relative ("Tomorrow at 2pm") and accepts most languages.''',
-        option_type=STRING,
-        required=True
-    ),
-    create_option(
-        name="display",
-        description="Method of display",
-        option_type=STRING,
-        required=False,
-        choices=[
-            create_choice(name="Automatic", value="auto"),
-            create_choice(name="Relative (In x hours, etc)", value="R"),
-            create_choice(name="Time (HH:MM)", value="t"),
-            create_choice(name="Time (HH:MM:SS)", value="T"),
-            create_choice(name="Date (numbers)", value="d"),
-            create_choice(name="Date (words)", value="D"),
-            create_choice(name="Date (words + time)", value="f"),
-            create_choice(name="Date (words + time + weekday)", value="F"),
-            create_choice(name="Display ALL formats", value="all"),
-        ]
-    ),
-]
+DATETIME = create_option(
+    name="datetime",
+    description='''The time (and date, if not today). Can be relative ("Tomorrow at 2pm") and accepts most languages.''',
+    option_type=STRING,
+    required=True
+)
+DISPLAY = create_option(
+    name="display",
+    description="Method of display",
+    option_type=STRING,
+    required=False,
+    choices=[
+        create_choice(name="Automatic", value="auto"),
+        create_choice(name="Relative (In x hours, etc)", value="R"),
+        create_choice(name="Time (HH:MM)", value="t"),
+        create_choice(name="Time (HH:MM:SS)", value="T"),
+        create_choice(name="Date (numbers)", value="d"),
+        create_choice(name="Date (words)", value="D"),
+        create_choice(name="Date (words + time)", value="f"),
+        create_choice(name="Date (words + time + weekday)", value="F"),
+        create_choice(name="All formats", value="all"),
+    ]
+)
 
 
 @slash.slash(
     guild_ids=GUILDS,
-    options=DATE_OPTIONS + [
+    options=[
+        DATETIME,
+        DISPLAY,
         create_option(
             name="name",
             description="Give the event a name",
@@ -134,12 +134,12 @@ DATE_OPTIONS = [
         )
     ]
 )
-async def when(
+async def event(
     ctx: SlashContext,
     datetime: str,
     display: str = "auto",
     name: str = None,
 ):
-    '''Display a date and time in an easy-to-read way.'''
+    '''Display in the channel an event for others to see.'''
     response = interpret(datetime, display, name)
     await ctx.send(response.msg, hidden=not response.worked)
