@@ -58,5 +58,5 @@ TRANSFORMATION_OPTIONS.append(create_choice(
     ]
 )
 async def format(ctx: SlashContext, text: str, format: str):
-    '''Format text in a variety of ways!'''
+    '''Format text in a variety of ways! (This only appears for you.)'''
     await ctx.send(transform(text, format), hidden=True)

@@ -8,8 +8,6 @@ from context import slash, STRING, GUILDS
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
-from joke import joke_gif
-
 FORMATS = "RtTdDfF"
 now = datetime.now
 
@@ -62,10 +60,9 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
     ON = "on" if fmt in "dDfF" else "at"
 
     if fmt == "all":
-        msg = "You can present this in a variety of ways:\n"
+        msg = "**These codes all show up in the time zone of the reader**:\n"
         for code in FORMATS:
-            msg += f"Type `<t:{unix}:{code}>` to get <t:{unix}:{code}>\n"
-        msg += "These messages all adapt to the time zone of the reader! \n"
+            msg += f"`<t:{unix}:{code}>` → <t:{unix}:{code}>\n"
         msg += f"Don't forget to add the UTC timestamp ({utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
         msg += ", just in case someone is using an older version of Discord!"
         return InterpretResult(True, msg, utc)
@@ -119,6 +116,23 @@ DISPLAY = create_option(
         create_choice(name="All formats", value="all"),
     ]
 )
+
+
+@slash.slash(
+    guild_ids=GUILDS,
+    options=[
+        DATETIME,
+        DISPLAY,
+    ],
+)
+async def when(
+    ctx: SlashContext,
+    datetime: str,
+    display: str = "all",
+):
+    '''Display a date or time in a way that works for all time zones. (This only appears for you.)'''
+    response = interpret(datetime, display)
+    await ctx.send(response.msg, hidden=True)
 
 
 @slash.slash(
