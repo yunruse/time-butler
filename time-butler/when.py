@@ -47,17 +47,8 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
             False,
             f"Sorry - Discord doesn't have any magic display formats built in for a {parsed.period} :(")
 
-    now = datetime.now()
     unix = int(parsed.date_obj.timestamp())
     utc = datetime.fromtimestamp(unix)
-
-    in_future = utc >= now
-    delta = abs(utc - now)
-    time_show_seconds = parsed.date_obj.second != 0
-
-    # TODO: Other languages based on parsed.locale
-    WILL_BE = "will be" if in_future else "was"
-    ON = "on" if fmt in "dDfF" else "at"
 
     if fmt == "all":
         msg = "**These codes all show up in the time zone of the reader**:\n"
@@ -66,31 +57,7 @@ def interpret(string, fmt: str, name: str = None) -> InterpretResult:
         msg += f"Don't forget to add the UTC timestamp ({utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
         msg += ", just in case someone is using an older version of Discord!"
         return InterpretResult(True, msg, utc)
-
-    msg = [] if name is None else [f"**{name}** {WILL_BE}"]
-
-    if fmt == "auto":
-        fmt = "F"
-        utc_fmt = '%Y-%m-%d %H:%M'
-        if parsed.period == "day":
-            fmt = "D"
-            utc_fmt = '%Y-%m-%d'
-        elif delta < timedelta(days=1):
-            fmt = "T" if time_show_seconds else "t"
-            utc_fmt = '%H:%M'
-
-        if time_show_seconds:
-            utc_fmt = utc_fmt.replace('%M', '%M:%S')
-
-        if name is None:
-            msg.append(f"`{string}` {WILL_BE}")
-        msg.append(f"<t:{unix}:R> {ON} <t:{unix}:{fmt}>")
-        msg.append(f"({utc.strftime(utc_fmt)} UTC)")
-    else:
-        if name is not None:
-            msg.append(ON)
-        msg.append(f" <t:{unix}:{fmt}>")
-    return InterpretResult(True, " ".join(msg), utc)
+    return InterpretResult(True, f"<t:{unix}:{fmt}>", utc)
 
 
 DATETIME = create_option(
@@ -105,7 +72,6 @@ DISPLAY = create_option(
     option_type=STRING,
     required=False,
     choices=[
-        create_choice(name="Automatic", value="auto"),
         create_choice(name="Relative (In x hours, etc)", value="R"),
         create_choice(name="Time (HH:MM)", value="t"),
         create_choice(name="Time (HH:MM:SS)", value="T"),
@@ -120,11 +86,7 @@ DISPLAY = create_option(
 
 @slash.slash(
     guild_ids=GUILDS,
-    options=[
-        DATETIME,
-        DISPLAY,
-    ],
-)
+    options=[DATETIME, DISPLAY])
 async def when(
     ctx: SlashContext,
     datetime: str,
@@ -133,27 +95,3 @@ async def when(
     '''Display a date or time in a way that works for all time zones. (This only appears for you.)'''
     response = interpret(datetime, display)
     await ctx.send(response.msg, hidden=True)
-
-
-@slash.slash(
-    guild_ids=GUILDS,
-    options=[
-        DATETIME,
-        DISPLAY,
-        create_option(
-            name="name",
-            description="Give the event a name",
-            option_type=STRING,
-            required=False,
-        )
-    ]
-)
-async def event(
-    ctx: SlashContext,
-    datetime: str,
-    display: str = "auto",
-    name: str = None,
-):
-    '''Display in the channel an event for others to see.'''
-    response = interpret(datetime, display, name)
-    await ctx.send(response.msg, hidden=not response.worked)
