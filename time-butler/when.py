@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from typing import Optional
+from datetime import datetime
 
 from dateparser import DateDataParser
 
@@ -30,34 +28,21 @@ def parse(string):
     return parsed
 
 
-@dataclass
-class InterpretResult:
-    worked: bool
-    msg: str
-    datetime: Optional[datetime] = None
-
-
-def interpret(string, fmt: str, name: str = None) -> InterpretResult:
+def interpret(string: str, fmt: str) -> str:
     parsed = parse(string)
     if parsed.date_obj is None:
-        return InterpretResult(False, f"Sorry, I didn't understand what you mean by `{string}`! :(")
-
+        return f"Sorry, I didn't understand what you mean by `{string}`! :("
     if parsed.period not in ("time", "day"):
-        return InterpretResult(
-            False,
-            f"Sorry - Discord doesn't have any magic display formats built in for a {parsed.period} :(")
+        return f"Sorry - Discord doesn't have any magic display formats built in for a {parsed.period} :("
 
     unix = int(parsed.date_obj.timestamp())
-    utc = datetime.fromtimestamp(unix)
 
     if fmt == "all":
         msg = "**These codes all show up in the time zone of the reader**:\n"
         for code in FORMATS:
             msg += f"`<t:{unix}:{code}>` → <t:{unix}:{code}>\n"
-        msg += f"Don't forget to add the UTC timestamp ({utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
-        msg += ", just in case someone is using an older version of Discord!"
-        return InterpretResult(True, msg, utc)
-    return InterpretResult(True, f"<t:{unix}:{fmt}>", utc)
+        return msg
+    return f"<t:{unix}:{fmt}>"
 
 
 DATETIME = create_option(
@@ -92,5 +77,4 @@ async def when(
     display: str = "all",
 ):
     '''Display a date or time in a way that works for all time zones. (This only appears for you.)'''
-    response = interpret(datetime, display)
-    await ctx.send(response.msg, hidden=True)
+    await ctx.send(interpret(datetime, display), hidden=True)
