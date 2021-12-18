@@ -6,4 +6,3 @@ from discord_slash import SlashCommand
 bot = Bot("/")
 slash = SlashCommand(bot, sync_commands=True)
 STRING = 3
-GUILDS = None

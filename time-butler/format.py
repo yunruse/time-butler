@@ -1,15 +1,10 @@
 import json
 from string import ascii_lowercase, ascii_uppercase
 
-from context import slash, STRING, GUILDS
-
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
-from context import slash, STRING, GUILDS
 
-# TODO:
-# - Spaced out text  l i k e  t h i s  (with nbsp)
-# - Spaced out text with fullwidth characters
+from context import slash, STRING
 
 TRANSFORMATIONS = {}
 TRANSFORMATION_OPTIONS = []
@@ -40,7 +35,6 @@ TRANSFORMATION_OPTIONS.append(create_choice(
 
 
 @slash.slash(
-    guild_ids=GUILDS,
     options=[
         create_option(
             name="text",

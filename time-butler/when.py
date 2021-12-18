@@ -4,7 +4,7 @@ from typing import Optional
 
 from dateparser import DateDataParser
 
-from context import slash, STRING, GUILDS
+from context import slash, STRING
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
@@ -85,7 +85,6 @@ DISPLAY = create_option(
 
 
 @slash.slash(
-    guild_ids=GUILDS,
     options=[DATETIME, DISPLAY])
 async def when(
     ctx: SlashContext,
