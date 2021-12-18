@@ -6,6 +6,8 @@ from context import slash, STRING
 from discord_slash import SlashContext
 from discord_slash.utils.manage_commands import create_option, create_choice
 
+from joke import joke_gif
+
 FORMATS = "RtTdDfF"
 now = datetime.now
 
@@ -77,4 +79,6 @@ async def when(
     display: str = "all",
 ):
     '''Display a date or time in a way that works for all time zones. (This only appears for you.)'''
+    if display == "all" and (GIF := joke_gif(datetime)):
+        return await ctx.send(GIF, hidden=True)
     await ctx.send(interpret(datetime, display), hidden=True)
