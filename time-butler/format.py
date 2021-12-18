@@ -22,7 +22,7 @@ def transform(text: str, format: str = ""):
     return text
 
 
-with open('format.json') as f:
+with open('format.json', encoding='utf8') as f:
     DATA: dict[str, object] = json.load(f)
 
 for k, v in DATA.items():
